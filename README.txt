@@ -58,4 +58,22 @@ A) Example usage for building a model to compute recommendations:
 
 
 B) Visualization app deployment and usage:
+1. Prepare data and calculate HG score: Visualization\datapreparationforHGScore
 
+FULL_DB_PATH = os.path.join(SCRIPT_DIR, "data/yelp_all_fromcsv.db")
+TARGET_USERS_FILE = os.path.join(SCRIPT_DIR, "data/users.txt")
+SMALL_DB_PATH = os.path.join(SCRIPT_DIR, "data/filtered_yelp_subset.db")
+
+
+	Script							Required Input Files							Output Files
+	step0_insertCSVDataTosqlite.py	yelp_restaurants_filtered_with_new_features.csv,yelp_restaurant_reviews_with_vader.csv,yelp_users_with_taste_profile.csv	yelp_all_fromcsv.db
+	step1_sqlNewdbAllBus.py			yelp_all_fromcsv.db, users.txt					filtered_yelp_subset.db
+	step2_calculateHGScore.py		filtered_yelp_subset.db, business_ids.txt		business_metrics.json (or parquet/csv)
+	step3_MergeHG.py				user_top25_recs.csv, business_metrics.json		user_recs_25_with_gem_score.csv
+
+
+	business_ids.txt = contains all unique business ids in a text file \n separated.
+	users.txt	= contains all unique user ids in a text file \n separated.
+
+2)	Visualization UI: Visualization\ToLambda
+	Contains sample data, .html and app.py

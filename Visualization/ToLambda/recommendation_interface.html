@@ -1,0 +1,1038 @@
+<!DOCTYPE HTML>
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>User Recommendations Map</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.png">
+    <!-- Include Leaflet CSS and JavaScript -->
+    <link rel="stylesheet" crossorigin="" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet-src.js" crossorigin=""></script>
+    
+    <!-- Include marker clustering plugin -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <style>
+        /* Base Layout */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex: 1;
+            position: relative;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* User Selection */
+        .user-selection {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .user-selection label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-selection select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .user-selection select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Recommendations List */
+        .recommendations {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .recommendation-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .recommendation-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .recommendation-item.selected {
+            background-color: #e3f2fd;
+            border-left: 4px solid #667eea;
+        }
+
+        .business-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+
+        .business-details {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .rating-badge {
+            display: inline-block;
+            background: #f7b733;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .location-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* Map */
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Custom Marker Styles */
+        .custom-marker {
+            background: transparent;
+            border: none;
+        }
+
+        .marker-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .marker-dot.recommended {
+            background-color: #667eea;
+        }
+
+        .marker-dot:hover {
+            transform: scale(1.2);
+            transition: transform 0.2s ease;
+        }
+
+        .marker-dot.highlighted {
+            background-color: #ffd700 !important;
+            animation: highlight-pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 0 0 rgba(102, 126, 234, 0.4);
+            }
+            70% {
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 0 8px rgba(102, 126, 234, 0);
+            }
+            100% {
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 0 0 rgba(102, 126, 234, 0);
+            }
+        }
+
+        @keyframes highlight-pulse {
+            0% {
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 0 0 rgba(255, 215, 0, 0.7);
+            }
+            70% {
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 0 10px rgba(255, 215, 0, 0);
+            }
+            100% {
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 0 0 rgba(255, 215, 0, 0);
+            }
+        }
+
+        /* Cluster Styles */
+        .marker-cluster {
+            background-color: rgba(102, 126, 234, 0.8);
+            border: 2px solid rgba(102, 126, 234, 1);
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .marker-cluster div {
+            background-color: rgba(102, 126, 234, 0.8);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            margin: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Different cluster sizes */
+        .marker-cluster-small {
+            background-color: rgba(102, 126, 234, 0.7);
+        }
+
+        .marker-cluster-small div {
+            background-color: rgba(102, 126, 234, 0.8);
+            width: 30px;
+            height: 30px;
+        }
+
+        .marker-cluster-medium {
+            background-color: rgba(244, 188, 66, 0.8);
+            border-color: rgba(244, 188, 66, 1);
+        }
+
+        .marker-cluster-medium div {
+            background-color: rgba(244, 188, 66, 0.8);
+            width: 36px;
+            height: 36px;
+        }
+
+        .marker-cluster-large {
+            background-color: rgba(231, 76, 60, 0.8);
+            border-color: rgba(231, 76, 60, 1);
+        }
+
+        .marker-cluster-large div {
+            background-color: rgba(231, 76, 60, 0.8);
+            width: 40px;
+            height: 40px;
+        }
+
+        /* Popup Styles */
+        .business-popup {
+            font-family: inherit;
+            max-width: 300px;
+        }
+
+        .business-popup h3 {
+            margin: 0 0 12px 0;
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 6px;
+        }
+
+        .popup-content {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .popup-rating {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 8px 0;
+        }
+
+        .popup-details {
+            color: #666;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            min-width: 200px;
+        }
+
+        .stats-panel h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+
+        .stats-panel .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            font-size: 14px;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 50vh;
+            }
+            
+            .main-content {
+                height: 50vh;
+            }
+            
+            .stats-panel {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                position: relative;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="header">
+                <h1>Personalized Food Suggestions</h1>
+                <p>driven by Collaborative Filtering | Content-Based Filtering | Hidden Gem Scoring </p>
+                    <p> Promotes lesser-known quality restaurants and your taste preferences</p>
+            </div>
+            
+            <div class="user-selection">
+                <label for="user-select">Select User:</label>
+                <div style="position: relative;">
+                    <select id="user-select" style="width: 100%;">
+                        <option value="">Loading users...</option>
+                    </select>
+                    <span id="user-loading-spinner" style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+                </div>
+            </div>
+            
+            <div class="recommendations" id="recommendations-list">
+                <div class="loading">Select a user to view recommendations</div>
+            </div>
+        </div>
+
+        <!-- Main Map Area -->
+        <div class="main-content">
+            <div class="stats-panel" id="stats-panel" style="display: none;">
+                <h3>Recommendation Stats</h3>
+                <div class="stat-item">
+                    <span class="stat-label">Total Recommendations:</span>
+                    <span class="stat-value" id="total-recommendations">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Average Rating:</span>
+                    <span class="stat-value" id="avg-rating">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Top Category:</span>
+                    <span class="stat-value" id="top-category">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Cities Covered:</span>
+                    <span class="stat-value" id="cities-covered">-</span>
+                </div>
+            </div>
+            
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+        // Returns a color for the HiddenGEM Score badge based on the score (0-5)
+        function getHiddenGemColor(score) {
+            let norm = Math.max(0, Math.min(1, parseFloat(score) || 0));
+            let r, g, b;
+            if (norm < 0.5) {
+                // Red to yellow
+                r = 247;
+                g = Math.round(183 * (norm / 0.5));
+                b = 51;
+            } else {
+                // Yellow to green
+                r = Math.round(247 - (247 - 76) * ((norm - 0.5) / 0.5));
+                g = Math.round(183 + (174 - 183) * ((norm - 0.5) / 0.5));
+                b = Math.round(51 + (72 - 51) * ((norm - 0.5) / 0.5));
+            }
+            return `rgb(${r},${g},${b})`;
+        }
+        // Global variables
+        let map;
+        let markerClusterGroup;
+        let currentUserRecommendations = [];
+        let businessMarkers = {};
+        
+        // Initialize map
+        function initializeMap() {
+            map = L.map('map').setView([39.8283, -98.5795], 4); // Center of US
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18
+            }).addTo(map);
+            
+            // Initialize marker cluster group
+            markerClusterGroup = L.markerClusterGroup({
+                chunkedLoading: true,
+                maxClusterRadius: 50, // Reduced radius for better zoom behavior
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true,
+                disableClusteringAtZoom: 10, // Show individual markers at zoom level 10+
+                spiderfyDistanceMultiplier: 1.5,
+                
+                iconCreateFunction: function(cluster) {
+                    const count = cluster.getChildCount();
+                    let size = 'small';
+                    if (count >= 20) size = 'large';
+                    else if (count >= 10) size = 'medium';
+                    
+                    return new L.DivIcon({
+                        html: '<div><span>' + count + '</span></div>',
+                        className: 'marker-cluster marker-cluster-' + size,
+                        iconSize: new L.Point(40, 40)
+                    });
+                }
+            });
+            
+            map.addLayer(markerClusterGroup);
+        }
+        
+        // Load recommendation data with pagination
+        async function loadRecommendationData() {
+            try {
+                document.getElementById('user-loading-spinner').style.display = 'inline-block';
+                console.log('Fetching recommendations with pagination...');
+                let allRecommendations = [];
+                let page = 1;
+                let totalPages = 1;
+                // Fetch all pages from the CSV-backed API
+                while (page <= totalPages) {
+                    const response = await fetch(`/api/recommendations?page=${page}&per_page=1000`);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Error response:', errorText);
+                        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+                    }
+                    const pageData = await response.json();
+                    if (pageData.data && pageData.pagination) {
+                        allRecommendations = allRecommendations.concat(pageData.data);
+                        totalPages = pageData.pagination.total_pages;
+                        console.log(`Loaded ${pageData.data.length} items from page ${page}/${totalPages}`);
+                    } else if (Array.isArray(pageData)) {
+                        allRecommendations = pageData;
+                        break;
+                    } else {
+                        throw new Error('Invalid data format received');
+                    }
+                    page++;
+                }
+                // Add unique identifier for tracking
+                allRecommendations.forEach((recommendation, index) => {
+                    recommendation._id = index;
+                });
+                window.allRecommendations = allRecommendations;
+                console.log('Loaded recommendations:', allRecommendations.length);
+                populateUserSelect();
+                document.getElementById('user-loading-spinner').style.display = 'none';
+            } catch (error) {
+                document.getElementById('user-loading-spinner').style.display = 'none';
+                console.error('Error loading recommendation data:', error);
+                document.getElementById('recommendations-list').innerHTML = 
+                    '<div style="padding: 20px; color: red;">Error loading recommendations: ' + error.message + '</div>';
+            }
+        }
+        
+        // Populate user select dropdown
+        function populateUserSelect() {
+            const uniqueUsers = [...new Set(window.allRecommendations.map(r => r.user_id))];
+            const userSelect = document.getElementById('user-select');
+            userSelect.innerHTML = '<option value="">Select a user...</option>';
+            uniqueUsers.forEach(userId => {
+                const option = document.createElement('option');
+                option.value = userId;
+                option.textContent = `User ${userId.substring(0, 8)}...`;
+                userSelect.appendChild(option);
+            });
+            // Hide spinner after users are loaded (in case called separately)
+            const spinner = document.getElementById('user-loading-spinner');
+            if (spinner) spinner.style.display = 'none';
+            // Add event listener
+            userSelect.addEventListener('change', handleUserSelection);
+        }
+        
+        // Handle user selection
+        function handleUserSelection(event) {
+            const selectedUserId = event.target.value;
+            
+            if (!selectedUserId) {
+                clearRecommendations();
+                return;
+            }
+            
+            // Filter recommendations for selected user
+            currentUserRecommendations = window.allRecommendations.filter(
+                r => r.user_id === selectedUserId
+            );
+            
+            displayRecommendations();
+            displayRecommendationsOnMap();
+            updateStats();
+        }
+        
+        // Display recommendations in sidebar
+        function displayRecommendations() {
+            const container = document.getElementById('recommendations-list');
+            
+            if (currentUserRecommendations.length === 0) {
+                container.innerHTML = '<div class="loading">No recommendations found</div>';
+                return;
+            }
+
+            // Sort by hidden_gem_score descending
+            const sortedRecs = [...currentUserRecommendations].sort((a, b) => parseFloat(b.hidden_gem_score || 0) - parseFloat(a.hidden_gem_score || 0));
+
+            container.innerHTML = '';
+
+            sortedRecs.forEach((rec, index) => {
+                const item = document.createElement('div');
+                item.className = 'recommendation-item';
+                item.dataset.businessId = rec.business_id;
+                const color = getHiddenGemColor(rec.hidden_gem_score);
+                item.innerHTML = `
+                    <div class="business-name">${rec.name || 'Unknown Business'}</div>
+                    <div class="business-details">
+                        ${rec.categories || 'No category'}
+                    </div>
+                    <div class="rating-badge" style="background: ${color}; color: white;">
+                        HiddenGEM Score: ${parseFloat(rec.hidden_gem_score || 0).toFixed(2)}/1
+                    </div>
+                    <div class="location-info">
+                        ${rec.city || 'Unknown'}, ${rec.state || ''}
+                        ${rec.stars ? `• Actual: ${rec.stars}/5` : ''}
+                    </div>
+                `;
+                item.addEventListener('click', () => highlightBusiness(rec));
+                container.appendChild(item);
+            });
+        }
+        
+        // Display recommendations on map
+        function displayRecommendationsOnMap() {
+            // Clear existing markers
+            markerClusterGroup.clearLayers();
+            businessMarkers = {};
+            
+            const bounds = L.latLngBounds();
+            const addedLocations = new Set(); // Track unique locations to avoid duplicates
+            
+            currentUserRecommendations.forEach(rec => {
+                // Get coordinates for this business
+                const coords = getCityCoordinates(rec.city, rec.state);
+                
+                if (coords) {
+                    // Create a unique location key to spread out businesses in the same city
+                    const locationKey = `${rec.city}-${rec.state}`;
+                    
+                    // Add slight random offset to businesses in the same city to spread them out
+                    const offsetLat = coords.lat + (Math.random() - 0.5) * 0.05; // ~2.5km spread
+                    const offsetLng = coords.lng + (Math.random() - 0.5) * 0.05;
+                    
+                    const marker = L.marker([offsetLat, offsetLng], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: '<div class="marker-dot recommended"></div>',
+                            iconSize: [16, 16],
+                            iconAnchor: [8, 8]
+                        })
+                    });
+                    
+                    // Create popup content
+                    const popupContent = `
+                        <div class="business-popup">
+                            <h3>${rec.name || 'Unknown Business'}</h3>
+                            <div class="popup-content">
+                                <div class="popup-rating" style="background: ${getHiddenGemColor(rec.hidden_gem_score)}; color: white;">
+                                    HiddenGEM Score: ${parseFloat(rec.hidden_gem_score || 0).toFixed(2)}/1
+                                </div>
+                                ${rec.stars ? `<div>Actual Rating: ${rec.stars}/5</div>` : ''}
+                                <div class="popup-details">
+                                    <strong>Location:</strong> ${rec.city || 'Unknown'}, ${rec.state || ''}<br>
+                                    <strong>Categories:</strong> ${rec.categories || 'No category'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                    marker.business = rec;
+                    
+                    businessMarkers[rec._id] = marker; // Use unique ID instead of business_id
+                    markerClusterGroup.addLayer(marker);
+                    
+                    bounds.extend([offsetLat, offsetLng]);
+                } else {
+                    console.log(`No coordinates found for: ${rec.city}, ${rec.state}`);
+                }
+            });
+            
+            console.log(`Added ${Object.keys(businessMarkers).length} markers to map`);
+            
+            // Fit map to show all recommendations
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [20, 20] });
+            }
+            
+            // Update cluster settings based on zoom level
+            map.on('zoomend', updateMarkerDisplay);
+        }
+        
+        // Enhanced city coordinate lookup with more cities
+        function getCityCoordinates(city, state) {
+            const cityCoords = {
+                // Major US Cities
+                'Philadelphia': { lat: 39.9526, lng: -75.1652 },
+                'Sparks': { lat: 39.5349, lng: -119.7527 },
+                'Tampa': { lat: 27.9506, lng: -82.4572 },
+                'Reno': { lat: 39.5296, lng: -119.8138 },
+                'Nashville': { lat: 36.1627, lng: -86.7816 },
+                'Saint Louis': { lat: 38.6270, lng: -90.1994 },
+                'Las Vegas': { lat: 36.1699, lng: -115.1398 },
+                'Phoenix': { lat: 33.4484, lng: -112.0740 },
+                'Charlotte': { lat: 35.2271, lng: -80.8431 },
+                'Pittsburgh': { lat: 40.4406, lng: -79.9959 },
+                'Indianapolis': { lat: 39.7684, lng: -86.1581 },
+                'New Orleans': { lat: 29.9511, lng: -90.0715 },
+                'Boise': { lat: 43.6150, lng: -116.2023 },
+                'Tucson': { lat: 32.2226, lng: -110.9747 },
+                
+                // Canadian Cities
+                'Edmonton': { lat: 53.5461, lng: -113.4938 },
+                'Calgary': { lat: 51.0447, lng: -114.0719 },
+                'Toronto': { lat: 43.6532, lng: -79.3832 },
+                'Vancouver': { lat: 49.2827, lng: -123.1207 },
+                'Montreal': { lat: 45.5017, lng: -73.5673 },
+                'Ottawa': { lat: 45.4215, lng: -75.6972 },
+                'Winnipeg': { lat: 49.8951, lng: -97.1384 },
+                
+                // Arizona Cities
+                'Cleveland': { lat: 41.4993, lng: -81.6944 },
+                'Scottsdale': { lat: 33.4942, lng: -111.9261 },
+                'Mesa': { lat: 33.4152, lng: -111.8315 },
+                'Glendale': { lat: 33.5387, lng: -112.1860 },
+                'Tempe': { lat: 33.4255, lng: -111.9400 },
+                'Chandler': { lat: 33.3062, lng: -111.8413 },
+                'Gilbert': { lat: 33.3528, lng: -111.7890 },
+                'Peoria': { lat: 33.5806, lng: -112.2374 },
+                
+                // Wisconsin Cities
+                'Madison': { lat: 43.0642, lng: -89.4012 },
+                'Milwaukee': { lat: 43.0389, lng: -87.9065 },
+                'Green Bay': { lat: 44.5133, lng: -88.0133 },
+                'Middleton': { lat: 43.0974, lng: -89.5040 },
+                'Fitchburg': { lat: 42.9609, lng: -89.4696 },
+                'Verona': { lat: 42.9909, lng: -89.5301 },
+                'Sun Prairie': { lat: 43.1836, lng: -89.2137 },
+                
+                // Illinois Cities
+                'Chicago': { lat: 41.8781, lng: -87.6298 },
+                'Urbana': { lat: 40.1106, lng: -88.2073 },
+                'Champaign': { lat: 40.1164, lng: -88.2434 },
+                'Westmont': { lat: 41.7959, lng: -87.9756 },
+                'Naperville': { lat: 41.7508, lng: -88.1535 },
+                'Aurora': { lat: 41.7606, lng: -88.3201 },
+                'Joliet': { lat: 41.5250, lng: -88.0817 },
+                
+                // Nevada Cities
+                'Enterprise': { lat: 36.0253, lng: -115.1719 },
+                'Henderson': { lat: 36.0397, lng: -114.9817 },
+                'North Las Vegas': { lat: 36.1988, lng: -115.1175 },
+                'Paradise': { lat: 36.0972, lng: -115.1461 },
+                'Spring Valley': { lat: 36.1081, lng: -115.2446 },
+                'Sunrise Manor': { lat: 36.2110, lng: -115.0731 },
+                'Whitney': { lat: 36.0997, lng: -115.0372 },
+                'Winchester': { lat: 36.1297, lng: -115.1189 },
+                
+                // New Jersey Cities
+                'Montclair': { lat: 40.8176, lng: -74.2099 },
+                'Newark': { lat: 40.7357, lng: -74.1724 },
+                'Jersey City': { lat: 40.7178, lng: -74.0431 },
+                'Paterson': { lat: 40.9168, lng: -74.1718 },
+                
+                // California Cities
+                'Los Angeles': { lat: 34.0522, lng: -118.2437 },
+                'San Diego': { lat: 32.7157, lng: -117.1611 },
+                'San Jose': { lat: 37.3382, lng: -121.8863 },
+                'San Francisco': { lat: 37.7749, lng: -122.4194 },
+                'Sacramento': { lat: 38.5816, lng: -121.4944 },
+                'Fresno': { lat: 36.7378, lng: -119.7871 },
+                'Oakland': { lat: 37.8044, lng: -122.2712 },
+                'Belmont': { lat: 37.5202, lng: -122.2758 },
+                'Berkeley': { lat: 37.8715, lng: -122.2730 },
+                'Palo Alto': { lat: 37.4419, lng: -122.1430 },
+                
+                // Pennsylvania Cities
+                'Allentown': { lat: 40.6084, lng: -75.4902 },
+                'Erie': { lat: 42.1292, lng: -80.0851 },
+                'Reading': { lat: 40.3356, lng: -75.9269 },
+                
+                // Florida Cities
+                'Miami': { lat: 25.7617, lng: -80.1918 },
+                'Jacksonville': { lat: 30.3322, lng: -81.6557 },
+                'Orlando': { lat: 28.5383, lng: -81.3792 },
+                'St. Petersburg': { lat: 27.7676, lng: -82.6403 },
+                'Clearwater': { lat: 27.9659, lng: -82.8001 },
+                
+                // Tennessee Cities
+                'Memphis': { lat: 35.1495, lng: -90.0490 },
+                'Knoxville': { lat: 35.9606, lng: -83.9207 },
+                'Chattanooga': { lat: 35.0456, lng: -85.3097 },
+                
+                // Missouri Cities
+                'Kansas City': { lat: 39.0997, lng: -94.5786 },
+                'Springfield': { lat: 37.2090, lng: -93.2923 },
+                'Columbia': { lat: 38.9517, lng: -92.3341 },
+                
+                // North Carolina Cities
+                'Raleigh': { lat: 35.7796, lng: -78.6382 },
+                'Durham': { lat: 35.9940, lng: -78.8986 },
+                'Greensboro': { lat: 36.0726, lng: -79.7920 },
+                'Winston-Salem': { lat: 36.0999, lng: -80.2442 },
+                
+                // Louisiana Cities
+                'Baton Rouge': { lat: 30.4515, lng: -91.1871 },
+                'Shreveport': { lat: 32.5252, lng: -93.7502 },
+                'Lafayette': { lat: 30.2241, lng: -92.0198 },
+                
+                // Idaho Cities
+                'Meridian': { lat: 43.6121, lng: -116.3915 },
+                'Nampa': { lat: 43.5407, lng: -116.5635 },
+                'Idaho Falls': { lat: 43.4666, lng: -112.0341 },
+                
+                // Ohio Cities
+                'Columbus': { lat: 39.9612, lng: -82.9988 },
+                'Cincinnati': { lat: 39.1031, lng: -84.5120 },
+                'Toledo': { lat: 41.6528, lng: -83.5379 },
+                'Akron': { lat: 41.0814, lng: -81.5190 },
+                'Dayton': { lat: 39.7589, lng: -84.1916 },
+                
+                // Texas Cities
+                'Houston': { lat: 29.7604, lng: -95.3698 },
+                'Dallas': { lat: 32.7767, lng: -96.7970 },
+                'Austin': { lat: 30.2672, lng: -97.7431 },
+                'San Antonio': { lat: 29.4241, lng: -98.4936 },
+                'Fort Worth': { lat: 32.7555, lng: -97.3308 },
+                'El Paso': { lat: 31.7619, lng: -106.4850 },
+                
+                // Washington Cities
+                'Seattle': { lat: 47.6062, lng: -122.3321 },
+                'Spokane': { lat: 47.6588, lng: -117.4260 },
+                'Tacoma': { lat: 47.2529, lng: -122.4443 },
+                
+                // Colorado Cities
+                'Denver': { lat: 39.7392, lng: -104.9903 },
+                'Colorado Springs': { lat: 38.8339, lng: -104.8214 },
+                'Aurora': { lat: 39.7294, lng: -104.8319 },
+                
+                // Georgia Cities
+                'Atlanta': { lat: 33.7490, lng: -84.3880 },
+                'Savannah': { lat: 32.0809, lng: -81.0912 },
+                'Augusta': { lat: 33.4735, lng: -82.0105 },
+                
+                // Michigan Cities
+                'Detroit': { lat: 42.3314, lng: -83.0458 },
+                'Grand Rapids': { lat: 42.9634, lng: -85.6681 },
+                'Ann Arbor': { lat: 42.2808, lng: -83.7430 },
+                
+                // Minnesota Cities
+                'Minneapolis': { lat: 44.9778, lng: -93.2650 },
+                'St. Paul': { lat: 44.9537, lng: -93.0900 },
+                'Rochester': { lat: 44.0121, lng: -92.4802 },
+                
+                // Massachusetts Cities
+                'Boston': { lat: 42.3601, lng: -71.0589 },
+                'Worcester': { lat: 42.2626, lng: -71.8023 },
+                'Cambridge': { lat: 42.3736, lng: -71.1097 },
+                
+                // New York Cities
+                'New York': { lat: 40.7128, lng: -74.0060 },
+                'Buffalo': { lat: 42.8864, lng: -78.8784 },
+                'Rochester': { lat: 43.1566, lng: -77.6088 },
+                'Syracuse': { lat: 43.0481, lng: -76.1474 }
+            };
+            
+            // Try direct lookup first
+            if (cityCoords[city]) {
+                return cityCoords[city];
+            }
+            
+            // Try state-based approximation for unknown cities
+            const stateCoords = {
+                'PA': { lat: 40.2732, lng: -76.8755 },
+                'NV': { lat: 38.8026, lng: -116.4194 },
+                'FL': { lat: 27.7663, lng: -81.6868 },
+                'TN': { lat: 35.7478, lng: -86.7945 },
+                'MO': { lat: 38.4561, lng: -92.2884 },
+                'AZ': { lat: 33.7712, lng: -111.3877 },
+                'NC': { lat: 35.6301, lng: -79.8064 },
+                'IN': { lat: 39.8647, lng: -86.2604 },
+                'LA': { lat: 31.1695, lng: -91.8678 },
+                'ID': { lat: 44.2405, lng: -114.4788 },
+                'OH': { lat: 40.3888, lng: -82.7649 },
+                'WI': { lat: 44.2619, lng: -89.6165 },
+                'IL': { lat: 40.3363, lng: -89.0022 },
+                'NJ': { lat: 40.0583, lng: -74.4057 },
+                'CA': { lat: 36.1162, lng: -119.6816 },
+                'AB': { lat: 53.9333, lng: -116.5765 }, // Alberta
+                'BC': { lat: 53.7267, lng: -127.6476 }, // British Columbia
+                'ON': { lat: 51.2538, lng: -85.3232 }, // Ontario
+                'QC': { lat: 52.9399, lng: -73.5491 }, // Quebec
+                'MB': { lat: 53.7609, lng: -98.8139 }, // Manitoba
+                'TX': { lat: 31.9686, lng: -99.9018 },
+                'WA': { lat: 47.7511, lng: -120.7401 },
+                'CO': { lat: 39.5501, lng: -105.7821 },
+                'GA': { lat: 32.1656, lng: -82.9001 },
+                'MI': { lat: 44.3148, lng: -85.6024 },
+                'MN': { lat: 46.7296, lng: -94.6859 },
+                'MA': { lat: 42.4072, lng: -71.3824 },
+                'NY': { lat: 43.2994, lng: -74.2179 },
+                'SC': { lat: 33.8361, lng: -81.1637 },
+                'AL': { lat: 32.3182, lng: -86.9023 },
+                'KY': { lat: 37.8393, lng: -84.2700 },
+                'OR': { lat: 43.8041, lng: -120.5542 },
+                'OK': { lat: 35.0078, lng: -97.0929 },
+                'CT': { lat: 41.6032, lng: -73.0877 },
+                'UT': { lat: 39.3210, lng: -111.0937 },
+                'IA': { lat: 41.8780, lng: -93.0977 },
+                'AR': { lat: 35.2010, lng: -91.8318 },
+                'MS': { lat: 32.3547, lng: -89.3985 },
+                'KS': { lat: 39.0119, lng: -98.4842 },
+                'NM': { lat: 34.5199, lng: -105.8701 },
+                'NE': { lat: 41.4925, lng: -99.9018 },
+                'WV': { lat: 38.5976, lng: -80.4549 },
+                'HI': { lat: 19.8968, lng: -155.5828 },
+                'NH': { lat: 43.1939, lng: -71.5724 },
+                'ME': { lat: 45.2538, lng: -69.4455 },
+                'RI': { lat: 41.5801, lng: -71.4774 },
+                'MT': { lat: 46.8797, lng: -110.3626 },
+                'DE': { lat: 38.9108, lng: -75.5277 },
+                'SD': { lat: 43.9695, lng: -99.9018 },
+                'ND': { lat: 47.5515, lng: -101.0020 },
+                'AK': { lat: 64.2008, lng: -149.4937 },
+                'VT': { lat: 44.5588, lng: -72.5778 },
+                'WY': { lat: 43.0760, lng: -107.2903 }
+            };
+            
+            if (state && stateCoords[state]) {
+                // Add some randomization to spread cities within state
+                const baseCoords = stateCoords[state];
+                return {
+                    lat: baseCoords.lat + (Math.random() - 0.5) * 2, // Spread within ~100km
+                    lng: baseCoords.lng + (Math.random() - 0.5) * 2
+                };
+            }
+            
+            return null;
+        }
+        
+        // Update marker display based on zoom level
+        function updateMarkerDisplay() {
+            const currentZoom = map.getZoom();
+            
+            // Adjust cluster radius based on zoom level
+            if (currentZoom > 10) {
+                // At high zoom, show individual markers
+                markerClusterGroup.options.disableClusteringAtZoom = 10;
+            } else {
+                // At low zoom, cluster more aggressively
+                markerClusterGroup.options.disableClusteringAtZoom = 15;
+            }
+        }
+        
+        // Highlight a specific business
+        function highlightBusiness(business) {
+            // Remove previous selections
+            document.querySelectorAll('.recommendation-item.selected').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Clear previous highlights
+            Object.values(businessMarkers).forEach(marker => {
+                const dot = marker.getElement()?.querySelector('.marker-dot');
+                if (dot) {
+                    dot.classList.remove('highlighted');
+                }
+            });
+            
+            // Highlight selected item in list
+            const selectedItem = document.querySelector(`[data-business-id="${business.business_id}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('selected');
+            }
+            
+            // Highlight marker on map using unique ID
+            const marker = businessMarkers[business._id];
+            if (marker) {
+                const dot = marker.getElement()?.querySelector('.marker-dot');
+                if (dot) {
+                    dot.classList.add('highlighted');
+                }
+                
+                // Center map on the business and open popup
+                const coords = getCityCoordinates(business.city, business.state);
+                if (coords) {
+                    map.setView([marker.getLatLng().lat, marker.getLatLng().lng], Math.max(map.getZoom(), 12));
+                    marker.openPopup();
+                }
+            }
+        }
+        
+        // Update statistics
+        function updateStats() {
+            if (currentUserRecommendations.length === 0) {
+                document.getElementById('stats-panel').style.display = 'none';
+                return;
+            }
+            
+            // Calculate stats
+            const totalRecs = currentUserRecommendations.length;
+            const avgRating = currentUserRecommendations.reduce((sum, rec) => 
+                sum + parseFloat(rec.predicted_rating || 0), 0) / totalRecs;
+            
+            const categories = currentUserRecommendations.map(rec => rec.categories).filter(Boolean);
+            const categoryCount = {};
+            categories.forEach(cat => {
+                const mainCategory = cat.split(',')[0].trim();
+                categoryCount[mainCategory] = (categoryCount[mainCategory] || 0) + 1;
+            });
+            
+            const topCategory = Object.keys(categoryCount).reduce((a, b) => 
+                categoryCount[a] > categoryCount[b] ? a : b) || 'N/A';
+            
+            const cities = [...new Set(currentUserRecommendations.map(rec => rec.city))].filter(Boolean);
+            
+            // Update display
+            document.getElementById('total-recommendations').textContent = totalRecs;
+            document.getElementById('avg-rating').textContent = avgRating.toFixed(1);
+            document.getElementById('top-category').textContent = topCategory;
+            document.getElementById('cities-covered').textContent = cities.length;
+            
+            document.getElementById('stats-panel').style.display = 'block';
+        }
+        
+        // Clear recommendations
+        function clearRecommendations() {
+            currentUserRecommendations = [];
+            document.getElementById('recommendations-list').innerHTML = 
+                '<div class="loading">Select a user to view recommendations</div>';
+            markerClusterGroup.clearLayers();
+            document.getElementById('stats-panel').style.display = 'none';
+        }
+        
+        // Initialize the application
+        function initializeApp() {
+            initializeMap();
+            loadRecommendationData();
+        }
+        
+        // Start the application when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
+    </script>
+</body>
+</html>
