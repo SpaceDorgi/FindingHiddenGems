@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: yelp-hybrid-recommender
+Version: 1.0.0
+Summary: A hybrid recommendation system for Yelp restaurant recommendations
+Author: Jacob Strickland
+Requires-Python: >=3.7
+Requires-Dist: pandas>=1.3.0
+Requires-Dist: numpy==1.21.0
+Requires-Dist: scikit-learn>=1.0.0
+Requires-Dist: scikit-surprise>=1.1.1
+Requires-Dist: scipy>=1.7.0
+Requires-Dist: matplotlib>=3.4.0
+Requires-Dist: seaborn>=0.11.0
+Requires-Dist: dill>=0.3.4
+Requires-Dist: tqdm>=4.62.0
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
