@@ -6,7 +6,7 @@ It combines content-based features and collaborative filtering (attribute aware 
 The codebase includes data preprocessing, feature extraction, model training, evaluation, plotting utilities, and example Jupyter notebooks.
 
 The 2nd main component to this package is the visualization portion, where you can visualize a users recommendations that have been reranked by the restaurant hidden gem score.
-This piece is implemented as an single page application (SPA) that is deployed on AWS Lambda and can be accessed via a public URL. Access the visualization app here:https://2ucwrakk2sffs447greh5cbnte0jjtdr.lambda-url.us-east-2.on.aws/ (it could take a little time to spin up, try to click the user dropdown and select a user to find their recommendations)
+This piece is implemented as a single page application (SPA) that is deployed on AWS Lambda and can be accessed via a public URL. Access the visualization app here:https://2ucwrakk2sffs447greh5cbnte0jjtdr.lambda-url.us-east-2.on.aws/ (it could take a little time to spin up, try to click the user dropdown and select a user to find their recommendations)
 The app is built using Flask as the backend framework, with HTML, CSS, and JavaScript for the frontend.
 The HTML/JavaScript frontend consumes the static precomputed recommendations, providing users with an interactive, responsive experience on the interactive map.
 This serverless deployment model leverages AWS Lambda's scalability and cost efficiency for serving the application and delivering a continuously refreshed set of static (for now), yet highly personalized, recommendations to end-users.
@@ -30,13 +30,13 @@ Requirements: Python 3.10+
    - `pip install -r requirements.txt`
 
 
-EXECUTION (Satya, I will need some help here, and we will likely need to update it)
+EXECUTION
 
 A) Example usage for building a model to compute recommendations:
 1. Building a demo model from scratch using the notebooks:
    - Go to the example usage directory
    - Open the example_usage_notebook.ipynb notebook
-    - Update the file paths to point to your local dataset location or use the subsets provided in the example usage directory
+   - Update the file paths to point to your local dataset location or use the subsets provided in the example usage directory
    - Run the notebook cells in order to process the data, extract features, train the model, evaluate it, and generate recommendations.
    - Note this notebook was used on a smaller subset of the data for demonstration purposes. For full scale training, refer to the detailed notebooks below.
 
